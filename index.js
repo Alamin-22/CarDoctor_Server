@@ -11,7 +11,7 @@ const port = process.env.PORT || 5000;
 // middleware
 
 app.use(cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
 }));
 app.use(express.json());
@@ -32,21 +32,33 @@ const client = new MongoClient(uri, {
     }
 });
 
-
-// middle wares  custom
+// middlewares custom
 
 const logger = async (req, res, next) => {
-    console.log("called:", req.host, req.originalUrl)
+    console.log("called", req.hostname, req.originalUrl);
+    next();
 }
 
-const verifyToken = async(req, res, next)=>{
-    const token= req.cookies?.token;
-    console.log("Value of token in middle ware:", token)
-    if(!token){
-        return res.status(401).send({message: "Not Authorized"})
+const verifyToken = async (req, res, next) => {
+    const token = req.cookies?.Token;
+    console.log("Value of token in middleware:", token)
+    if (!token) {
+        return res.status(401).send({ message: "Not Authorized" })
     }
-}
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        // error
+        if (err) {
+            console.log(err)
+            return res.status(401).send({ message: " Unauthorized" })
+        }
 
+        // if token is valid than it would be decoded
+
+        console.log("value in the token", decoded);
+        req.user = decoded;
+        next();
+    })
+}
 
 async function run() {
     try {
@@ -61,11 +73,14 @@ async function run() {
         app.post("/jwt", logger, async (req, res) => {
             const user = req.body;
             console.log(user);
-            const token = jwt.sign(user, process.env.Access_Token_Secret, { expiresIn: "1h" })
-            res.cookie("token", token, {
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: "1h",
+            });
+            res.cookie("Token", token, {
                 httpOnly: true,
-                secure: false
-            }).send({ success: true });
+                secure: false,
+            })
+                .send({ success: true });
         })
 
 
@@ -93,7 +108,8 @@ async function run() {
 
         app.get("/bookings", logger, verifyToken, async (req, res) => {
             console.log(req.query.email);
-            // console.log("tu token", req.cookies.token);
+            // console.log("tu tu token", req.cookies.Token);
+            console.log("User in the valid token", req.user)
             let query = {};
             if (req.query?.email) {
                 query = { email: req.query.email }
