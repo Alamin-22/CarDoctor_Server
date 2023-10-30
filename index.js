@@ -43,7 +43,7 @@ const verifyToken = async (req, res, next) => {
     const token = req.cookies?.Token;
     console.log("Value of token in middleware:", token)
     if (!token) {
-        return res.status(401).send({ message: "Not Authorized" })
+        return res.status(401).send({ message: "Unauthorized" })
     }
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
         // error
@@ -110,6 +110,11 @@ async function run() {
             console.log(req.query.email);
             // console.log("tu tu token", req.cookies.Token);
             console.log("User in the valid token", req.user)
+
+            if (req.query.email !== req.user.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
+
             let query = {};
             if (req.query?.email) {
                 query = { email: req.query.email }
